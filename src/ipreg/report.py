@@ -53,7 +53,11 @@ def print_summary(reg: Register, expiry_warning_days: int) -> None:
     _print_alerts(reg, expiry_warning_days)
 
 
-def _print_alerts(reg: Register, expiry_warning_days: int) -> None:
+def collect_alerts(reg: Register, expiry_warning_days: int) -> list[str]:
+    """Return the list of attention-worthy findings (expiring / out-of-range).
+
+    Kept separate from printing so the CLI can also use it to drive the exit code.
+    """
     alerts: list[str] = []
     for dom, entry in reg.domains.items():
         w = entry.get("whois", {})
@@ -67,7 +71,11 @@ def _print_alerts(reg: Register, expiry_warning_days: int) -> None:
         for sub, s in entry.get("subdomains", {}).items():
             if s.get("status") == "live" and s.get("in_owned_range") is False:
                 alerts.append(f"[yellow]SUBDOMAIN OUT OF RANGE[/yellow] {sub} -> {s.get('ips')}")
+    return alerts
 
+
+def _print_alerts(reg: Register, expiry_warning_days: int) -> None:
+    alerts = collect_alerts(reg, expiry_warning_days)
     if alerts:
         console.print("\n[bold]Attention[/bold]")
         for a in alerts:

@@ -137,6 +137,11 @@ date" message when nothing changed.
 Unless `--dry-run` was passed, the new register is written to `register/register.json` as
 stable, sorted JSON so that Git diffs reflect real changes, not formatting noise.
 
+If `--fail-on` was given, the command finally exits non-zero when the chosen condition is
+met — `drift` (the register changed), `alert` (something is expiring or out of range), or
+`any` (either). This is what lets a scheduled job or CI step *act* on a change rather than
+just record it. Without the flag, `scan` always exits `0`.
+
 ### Step 9 — Persist & notify (automation)
 In the GitHub Actions run, if the register file changed, the workflow commits it back to
 `main` with a timestamped message and opens a `register-drift` issue containing the change

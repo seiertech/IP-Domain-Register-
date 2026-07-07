@@ -85,7 +85,18 @@ ipreg diff old.json new.json
 
 # Export the register to CSV (hosts.csv, domains.csv, subdomains.csv)
 ipreg export --out-dir exports
+
+# Gate CI/cron on findings: exit non-zero on drift, on alerts, or either
+ipreg scan --fail-on drift   # exit 1 if the register changed
+ipreg scan --fail-on alert   # exit 1 if anything is expiring / out of range
+ipreg scan --fail-on any     # exit 1 on either
 ```
+
+### Using it as a gate
+
+By default `ipreg scan` always exits `0`. Pass `--fail-on` to make it exit `1` when
+there is drift and/or alerts, so a scheduled job, CI step, or monitor can treat
+"the register changed" or "something is expiring / out of range" as a failure to act on.
 
 Passive by default (WHOIS, RDAP, DNS and CT logs generate no traffic to your
 hosts). `--active` performs live DNS brute-force and should only be used against

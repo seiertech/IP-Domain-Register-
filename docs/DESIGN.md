@@ -154,10 +154,20 @@ Per domain:
 
 ### 4.8 CLI (`cli.py`)
 
-- `ipreg scan [--config --register --active --workers --dry-run]` — scan, diff against
-  the saved register, report, and (unless `--dry-run`) write the register.
+- `ipreg scan [--config --register --active --workers --dry-run --fail-on]` — scan, diff
+  against the saved register, report, and (unless `--dry-run`) write the register.
+  `--fail-on {never|drift|alert|any}` (default `never`) makes the command exit non-zero
+  when there is drift and/or alerts, so CI/cron/monitors can gate on it.
 - `ipreg report [--register --config]` — summarise the current register without scanning.
 - `ipreg diff <old.json> <new.json>` — compare two saved snapshots.
+- `ipreg export [--register --out-dir]` — flatten the register to CSV (hosts.csv,
+  domains.csv, subdomains.csv). Reads the existing register; does not scan.
+
+### 4.9 Exit codes
+
+- `0` — success (default for `scan` regardless of findings).
+- `1` — with `--fail-on`, indicates the configured gating condition (drift / alerts / any)
+  was met; also used for config/usage errors.
 
 ---
 

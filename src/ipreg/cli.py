@@ -11,7 +11,7 @@ from . import __version__
 from .config import AssetConfig
 from .export import export_csv
 from .register import Register, diff
-from .report import console, print_change_report, print_summary
+from .report import collect_alerts, console, print_change_report, print_summary
 from .scanner import scan
 
 DEFAULT_CONFIG = "config/assets.yaml"
@@ -34,7 +34,11 @@ def cli() -> None:
 @click.option("--workers", default=16, show_default=True, help="Concurrent lookup workers.")
 @click.option("--dry-run", is_flag=True, default=False,
               help="Scan and show changes but do NOT write the register.")
-def scan_cmd(config_path, register_path, active, workers, dry_run) -> None:
+@click.option("--fail-on", type=click.Choice(["never", "drift", "alert", "any"]),
+              default="never", show_default=True,
+              help="Exit non-zero for CI/cron gating: on register drift, on alerts "
+                   "(expiring/out-of-range), or on either ('any').")
+def scan_cmd(config_path, register_path, active, workers, dry_run, fail_on) -> None:
     """Scan owned assets, update the register, and report what changed."""
     cfg = _load_config(config_path)
 
@@ -51,10 +55,32 @@ def scan_cmd(config_path, register_path, active, workers, dry_run) -> None:
 
     if dry_run:
         console.print("\n[dim]Dry run — register not written.[/dim]")
-        return
+    else:
+        current.save(register_path)
+        console.print(f"\n[green]Register written to[/green] {register_path}")
 
-    current.save(register_path)
-    console.print(f"\n[green]Register written to[/green] {register_path}")
+    _maybe_fail(fail_on, changes, current, cfg.settings.expiry_warning_days)
+
+
+def _maybe_fail(fail_on, changes, current, expiry_warning_days) -> None:
+    """Exit non-zero when the configured gating condition is met (for CI/cron)."""
+    if fail_on == "never":
+        return
+    alerts = collect_alerts(current, expiry_warning_days)
+    drift = bool(changes)
+    trip = (
+        (fail_on in ("drift", "any") and drift)
+        or (fail_on in ("alert", "any") and bool(alerts))
+    )
+    if trip:
+        reasons = []
+        if fail_on in ("drift", "any") and drift:
+            reasons.append(f"{len(changes)} change(s)")
+        if fail_on in ("alert", "any") and alerts:
+            reasons.append(f"{len(alerts)} alert(s)")
+        console.print(f"\n[red]Exiting non-zero (--fail-on={fail_on}): "
+                      f"{', '.join(reasons)}.[/red]")
+        sys.exit(1)
 
 
 @cli.command("report")
