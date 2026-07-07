@@ -9,6 +9,7 @@ import click
 
 from . import __version__
 from .config import AssetConfig
+from .export import export_csv
 from .register import Register, diff
 from .report import console, print_change_report, print_summary
 from .scanner import scan
@@ -77,6 +78,22 @@ def report_cmd(register_path, config_path) -> None:
 def diff_cmd(old_register, new_register) -> None:
     """Show the changes between two saved register snapshots."""
     print_change_report(diff(Register.load(old_register), Register.load(new_register)))
+
+
+@cli.command("export")
+@click.option("--register", "register_path", default=DEFAULT_REGISTER, show_default=True)
+@click.option("--out-dir", default="exports", show_default=True,
+              help="Directory to write hosts.csv, domains.csv and subdomains.csv into.")
+def export_cmd(register_path, out_dir) -> None:
+    """Export the current register to spreadsheet-friendly CSV files."""
+    reg = Register.load(register_path)
+    if not reg.ip_ranges and not reg.domains:
+        console.print("[yellow]Register is empty — run `ipreg scan` first.[/yellow]")
+        return
+    paths = export_csv(reg, out_dir)
+    console.print("[green]Exported:[/green]")
+    for p in paths:
+        console.print(f"  • {p}")
 
 
 def _load_config(config_path: str) -> AssetConfig:

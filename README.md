@@ -82,6 +82,9 @@ ipreg report
 
 # Compare two saved register snapshots
 ipreg diff old.json new.json
+
+# Export the register to CSV (hosts.csv, domains.csv, subdomains.csv)
+ipreg export --out-dir exports
 ```
 
 Passive by default (WHOIS, RDAP, DNS and CT logs generate no traffic to your
