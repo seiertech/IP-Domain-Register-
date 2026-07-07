@@ -1,0 +1,7 @@
+dnspython>=2.6
+ipwhois>=1.2
+python-whois>=0.9.4
+requests>=2.31
+PyYAML>=6.0
+rich>=13.7
+click>=8.1

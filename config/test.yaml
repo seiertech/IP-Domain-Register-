@@ -1,0 +1,13 @@
+# Small live smoke-test config (real, safe, publicly-owned assets).
+ip_ranges:
+  - 8.8.8.8/32
+domains:
+  - iana.org
+settings:
+  max_ips_per_range: 4
+  resolvers:
+    - 1.1.1.1
+    - 8.8.8.8
+  expiry_warning_days: 45
+  timeout: 10
+  crtsh_timeout: 45

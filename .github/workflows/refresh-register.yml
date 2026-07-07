@@ -1,0 +1,74 @@
+name: Refresh register
+
+# Keeps the register always up to date automatically:
+#   * on a weekly schedule
+#   * on demand (workflow_dispatch)
+# Any drift (new subdomains, changed WHOIS owner, expiry approaching, IPs that
+# stopped resolving into owned ranges) is committed straight back to the repo,
+# so the register file and its git history ARE the audit trail.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # every Monday 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      active:
+        description: "Enable active subdomain brute-force"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # needed to commit the refreshed register
+  issues: write     # used to raise an alert issue when drift is found
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Scan and refresh register
+        run: |
+          ACTIVE_FLAG=""
+          if [ "${{ github.event.inputs.active }}" = "true" ]; then ACTIVE_FLAG="--active"; fi
+          ipreg scan --config config/assets.yaml --register register/register.json $ACTIVE_FLAG | tee scan-output.txt
+
+      - name: Commit register drift
+        id: commit
+        run: |
+          git config user.name  "register-bot"
+          git config user.email "register-bot@users.noreply.github.com"
+          if git diff --quiet -- register/register.json; then
+            echo "No changes to the register."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git add register/register.json
+            git commit -m "chore(register): automated refresh $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Raise an issue on drift
+        if: steps.commit.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = 'The scheduled scan detected changes to the asset register.\n\n';
+            try { body += '```\n' + fs.readFileSync('scan-output.txt', 'utf8') + '\n```'; } catch (e) {}
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Register drift detected — ${new Date().toISOString().slice(0,10)}`,
+              body,
+              labels: ['register-drift'],
+            });

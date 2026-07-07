@@ -1,0 +1,34 @@
+# -----------------------------------------------------------------------------
+# Owned external asset inventory (INPUT).
+#
+# This is the seed list of what YOU own. The tool scans everything listed here,
+# enriches it, discovers related assets (e.g. subdomains) and writes the results
+# to the register (register/register.json). This file is hand-maintained; the
+# register is machine-maintained.
+# -----------------------------------------------------------------------------
+
+# External IP ranges you own / are responsible for. CIDR notation or single IPs.
+ip_ranges:
+  - 8.8.8.0/28          # example only - replace with your ranges
+  # - 203.0.113.0/24
+  # - 198.51.100.10
+
+# Root domains you own. Subdomains are discovered automatically via CT logs.
+domains:
+  - example.com         # example only - replace with your domains
+  # - your-company.com
+
+# Scan tuning
+settings:
+  # Max IP addresses to enrich per range (safety cap so a /16 doesn't run forever).
+  max_ips_per_range: 256
+  # DNS resolvers to use for lookups.
+  resolvers:
+    - 1.1.1.1
+    - 8.8.8.8
+  # Warn when a domain expires within this many days.
+  expiry_warning_days: 45
+  # Network timeout (seconds) for fast per-lookup DNS/RDAP queries.
+  timeout: 10
+  # crt.sh (Certificate Transparency) can be slow; give it a larger budget.
+  crtsh_timeout: 45
