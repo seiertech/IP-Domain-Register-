@@ -7,9 +7,11 @@ reverse DNS, domain registration + expiry, DNS records and subdomains — then
 writes it all to a **versioned register** and tells you exactly what changed
 since last time. Run it on a schedule and the register stays accurate on its own.
 
-> **Design document:** see [`docs/DESIGN.md`](docs/DESIGN.md) for the full architecture,
-> data model, enrichment pipeline, change-detection design, automation model and
-> security/scope considerations.
+> **Docs:**
+> - [`docs/DESIGN.md`](docs/DESIGN.md) — full architecture, data model, enrichment
+>   pipeline, change-detection design, automation model and security/scope.
+> - [`docs/PROCESS_FLOW.md`](docs/PROCESS_FLOW.md) — step-by-step of exactly what
+>   happens during a scan, start to finish.
 
 ## What it collects
 
