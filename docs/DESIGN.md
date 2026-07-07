@@ -226,6 +226,20 @@ Per domain:
 - **Result:** the register stays current automatically, and every change is both a Git
   commit (diff/blame history) and a GitHub issue (notification + discussion).
 
+### 6.1 Enabling & scheduling
+
+- **Prerequisite:** Actions must be enabled with **read/write** workflow permission
+  (repo **Settings → Actions → General → Workflow permissions**), because the workflow
+  commits the refreshed register and opens issues.
+- **Schedule:** controlled by the `cron` line in `.github/workflows/refresh-register.yml`
+  (default `0 6 * * 1` — Mondays 06:00 UTC). Cron is always UTC. Editing that single line
+  changes the cadence (e.g. `0 6 * * *` daily, `0 */6 * * *` every six hours).
+- **On demand:** **Actions → Refresh register → Run workflow**, with an optional `active`
+  input to include active subdomain brute-force for that run.
+- **Gating:** adding `--fail-on {drift|alert|any}` to the workflow's scan step turns the
+  run red on change/risk, so Actions notifications double as an alerting channel.
+- See the README "Scheduling" section for the step-by-step and a cron cheat-sheet.
+
 ---
 
 ## 7. Security & authorisation

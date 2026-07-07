@@ -48,22 +48,60 @@ python -m venv .venv && . .venv/bin/activate
 pip install -e .
 ```
 
-## Configure
+## Loading your assets
 
-Edit `config/assets.yaml` with the ranges and domains you own:
+Everything the tool scans comes from **one file you control**: `config/assets.yaml`.
+It is the only input. The tool never edits it — it only reads it and writes findings
+to `register/register.json`.
+
+Open `config/assets.yaml`, delete the placeholder examples, and add your real assets:
 
 ```yaml
 ip_ranges:
-  - 203.0.113.0/24
-  - 198.51.100.10
+  - 203.0.113.0/24        # a whole CIDR block
+  - 198.51.100.0/28       # a smaller block
+  - 192.0.2.15            # a single IP is also fine
+
 domains:
-  - your-company.com
+  - your-company.com      # root domain only — subdomains are found automatically
+  - another-brand.co.uk
+
 settings:
-  max_ips_per_range: 256   # safety cap per range
+  max_ips_per_range: 256   # safety cap per range (a /16 won't run forever)
   expiry_warning_days: 45  # warn when a domain expires within N days
   timeout: 10              # fast DNS/RDAP per-lookup timeout (s)
   crtsh_timeout: 45        # crt.sh is slow; give it a bigger budget (s)
 ```
+
+**Rules — that's genuinely all there is to it:**
+
+| You have | How to enter it | Example |
+|----------|-----------------|---------|
+| A range of IPs | CIDR notation | `203.0.113.0/24` |
+| One IP | Just the address | `192.0.2.15` |
+| IPv6 | Same, CIDR or single | `2001:db8::/48` |
+| A domain | The **root** domain only | `your-company.com` |
+| A subdomain | **Don't list it** — it's discovered for you | *(automatic)* |
+
+Invalid IP ranges are rejected immediately with a clear error, so typos can't
+silently corrupt the register. Domain case doesn't matter.
+
+### Managing separate estates (optional)
+
+If you look after distinct sets of assets (e.g. per client or business unit), keep
+them in separate files and point at each with its own register:
+
+```bash
+ipreg scan --config config/client-a.yaml --register register/client-a.json
+ipreg scan --config config/client-b.yaml --register register/client-b.json
+```
+
+### Once your list is in
+
+```bash
+ipreg scan   # builds/updates the register and prints what changed
+```
+Commit `config/assets.yaml` to Git so even your *claimed* inventory has a change history.
 
 ## Use
 
@@ -102,11 +140,45 @@ Passive by default (WHOIS, RDAP, DNS and CT logs generate no traffic to your
 hosts). `--active` performs live DNS brute-force and should only be used against
 ranges/domains you own.
 
-## Keep it current automatically
+## Scheduling (keep it current automatically)
 
-`.github/workflows/refresh-register.yml` runs a scan on a weekly cron (and on
-demand), commits any register drift back to the repo, and opens an issue
-summarising what changed. Enable Actions on the repo and it maintains itself.
+The register maintains itself via GitHub Actions
+(`.github/workflows/refresh-register.yml`): on a schedule it scans, commits any drift
+back to `main`, and opens an issue summarising what changed. So the register — and its
+Git history — stays accurate with no manual runs.
+
+**1. Turn it on.** On GitHub: **Settings → Actions → General**, allow workflows to run,
+and ensure workflow write permission is enabled (**Workflow permissions → Read and write**).
+The workflow needs this to commit the refreshed register and open drift issues.
+
+**2. It runs automatically.** By default it runs every **Monday at 06:00 UTC**.
+
+**3. Change the frequency.** Edit the `cron` line at the top of
+`.github/workflows/refresh-register.yml`:
+
+```yaml
+on:
+  schedule:
+    - cron: "0 6 * * 1"     # min hour day-of-month month day-of-week
+```
+
+Common alternatives (replace that one line):
+
+| Frequency | cron line |
+|-----------|-----------|
+| Every day at 06:00 UTC | `0 6 * * *` |
+| Every Monday 06:00 UTC (default) | `0 6 * * 1` |
+| 1st of each month, 06:00 UTC | `0 6 1 * *` |
+| Every 6 hours | `0 */6 * * *` |
+
+(Cron here is always **UTC**. Syntax reference: [crontab.guru](https://crontab.guru).)
+
+**4. Run it on demand.** In the repo: **Actions → Refresh register → Run workflow**.
+There's an optional `active` toggle to include active subdomain brute-force for that run.
+
+**5. Gate on findings (optional).** To make a run *fail loudly* on change or risk,
+add `--fail-on` to the scan step in the workflow (e.g. `ipreg scan ... --fail-on any`),
+so drift or expiring/out-of-range assets turn the run red.
 
 ## Scope note
 
